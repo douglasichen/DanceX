@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, RotateCcw } from "lucide-react";
 
 interface VideoPlayerProps {
   src: string;
@@ -31,6 +31,16 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
 
   const speeds = [0.25, 0.5, 0.75, 1.0];
 
+  const handleRestart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+    }
+    if (!isPlaying) {
+      onTogglePlay();
+    }
+  };
+
   return (
     <div className={className}>
       <div className="relative w-full h-full bg-black rounded-2xl overflow-hidden border-2 border-gray-800/50 shadow-2xl group">
@@ -59,7 +69,16 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
           </div>
 
           {/* Speed Control - Bottom */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/90 backdrop-blur-md rounded-full px-4 py-3 border border-cyan-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/90 backdrop-blur-md rounded-full px-4 py-3 border border-cyan-500/30 shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+            <button
+              onClick={handleRestart}
+              className="p-1.5 rounded-full text-gray-300 hover:text-white hover:bg-gray-700/50 transition-all duration-200"
+              title="Restart Video"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-gray-700" />
+            <div className="flex gap-1.5">
             {speeds.map((speed) => (
               <button
                 key={speed}
@@ -73,6 +92,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
                 {speed.toFixed(1)}x
               </button>
             ))}
+            </div>
           </div>
         </div>
       </div>

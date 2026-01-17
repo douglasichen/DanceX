@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VideoCarousel } from "@/app/components/VideoCarousel";
 import { VideoPlayer } from "@/app/components/VideoPlayer";
 import { CameraFeed } from "@/app/components/CameraFeed";
 import { Upload } from "lucide-react";
+import sampleVideo from "../../media/C_720_shorter.mp4";
 
 // Mock video chunks data
-const videoChunks = [
+const INITIAL_CHUNKS = [
   {
     id: 1,
     title: "Intro Move",
@@ -39,13 +40,51 @@ const videoChunks = [
 ];
 
 // Sample video URL - In production, this would change based on selected chunk
-const SAMPLE_VIDEO = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+const SAMPLE_VIDEO = sampleVideo;
+
+const generateThumbnail = (videoUrl: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.crossOrigin = "anonymous";
+    video.currentTime = 0.1; // First frame
+    video.onloadeddata = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg");
+        resolve(dataUrl);
+      }
+    };
+    video.load();
+  });
+};
 
 export default function App() {
+  const [chunks, setChunks] = useState(INITIAL_CHUNKS);
   const [selectedChunk, setSelectedChunk] = useState(1);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
+
+  useEffect(() => {
+    const loadDefaultThumbnail = async () => {
+      try {
+        const thumbnail = await generateThumbnail(SAMPLE_VIDEO);
+        setChunks(prevChunks => prevChunks.map(chunk => ({
+          ...chunk,
+          thumbnail
+        })));
+      } catch (error) {
+        console.error("Error generating default thumbnail:", error);
+      }
+    };
+
+    loadDefaultThumbnail();
+  }, []);
 
   const handleTogglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -59,12 +98,21 @@ export default function App() {
     setSelectedChunk(id);
   };
 
-  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === "video/mp4") {
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
       setIsPlaying(false); // Pause when new video is loaded
+
+      // Generate thumbnail from first frame
+      const thumbnail = await generateThumbnail(url);
+      
+      // Update all chunks with new thumbnail
+      setChunks(prevChunks => prevChunks.map(chunk => ({
+        ...chunk,
+        thumbnail
+      })));
     }
   };
 
@@ -91,7 +139,7 @@ export default function App() {
           </label>
           
           <VideoCarousel
-            chunks={videoChunks}
+            chunks={chunks}
             selectedChunk={selectedChunk}
             onSelectChunk={handleSelectChunk}
           />

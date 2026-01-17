@@ -21,7 +21,7 @@ export function VideoCarousel({ chunks, selectedChunk, onSelectChunk }: VideoCar
           key={chunk.id}
           onClick={() => onSelectChunk(chunk.id)}
           className={cn(
-            "relative flex-shrink-0 rounded-xl overflow-hidden transition-all duration-300 border-2 transform hover:scale-105",
+            "relative flex-shrink-0 rounded-xl overflow-hidden transition-all duration-300 border-2",
             selectedChunk === chunk.id
               ? "border-cyan-400 shadow-[0_0_20px_rgba(0,242,234,0.6)] ring-2 ring-cyan-400/20"
               : "border-gray-700/50 hover:border-pink-400/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.3)]"
