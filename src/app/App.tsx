@@ -5,7 +5,7 @@ import { CameraFeed } from "@/app/components/CameraFeed";
 import { Upload, Loader2 } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { max } from "date-fns";
-import { getIntervals } from "../utils/gemini";
+import { getIntervals } from "../utils/gemini_chunk";
 
 // Sample video URL - In production, this would change based on selected chunk
 const SAMPLE_VIDEO = sampleVideo;
