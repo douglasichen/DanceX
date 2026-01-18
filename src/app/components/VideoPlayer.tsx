@@ -184,7 +184,10 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
     if (videoRef.current && poseRef.current) {
         // Handle looping
         if (endTime && videoRef.current.currentTime >= endTime) {
-            videoRef.current.currentTime = startTime;
+            videoRef.current.pause();
+            if (isPlaying) onTogglePlay();
+            onVideoEnd?.();
+            return;
         }
 
         try {
@@ -207,6 +210,9 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
   useEffect(() => {
     if (videoRef.current) {
       if (isPlaying) {
+        if (endTime && videoRef.current.currentTime >= endTime) {
+          videoRef.current.currentTime = startTime || 0;
+        }
         videoRef.current.play();
         if ('requestVideoFrameCallback' in videoRef.current) {
              requestRef.current = (videoRef.current as any).requestVideoFrameCallback(processFrame);
