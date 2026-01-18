@@ -11,9 +11,11 @@ interface VideoPlayerProps {
   className?: string;
   onTogglePlay: () => void;
   onSpeedChange: (speed: number) => void;
+  startTime?: number;
+  endTime?: number;
 }
 
-export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange }: VideoPlayerProps) {
+export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, startTime, endTime }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const poseRef = useRef<Pose | null>(null);
@@ -24,6 +26,16 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
   useEffect(() => {
     showSkeletonRef.current = showSkeleton;
   }, [showSkeleton]);
+
+  useEffect(() => {
+    console.log("startTime: ", startTime);
+    console.log("endTime: ", endTime);
+    if (videoRef.current) {
+      videoRef.current.currentTime = startTime;
+    } else {
+      console.log("videoRef.current is null");
+    }
+  }, [startTime, endTime, src]);
 
   const onResults = useCallback((results: Results) => {
     const canvas = canvasRef.current;
@@ -149,6 +161,11 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
 
   const processFrame = useCallback(async (now: number, metadata: any) => {
     if (videoRef.current && poseRef.current) {
+        // Handle looping
+        if (endTime && videoRef.current.currentTime >= endTime) {
+            videoRef.current.currentTime = startTime;
+        }
+
         try {
             await poseRef.current.send({ image: videoRef.current });
         } catch (error) {
@@ -164,7 +181,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
              }
         }
     }
-  }, [isPlaying]);
+  }, [isPlaying, startTime, endTime]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -199,7 +216,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
   const handleRestart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.currentTime = 0;
+      videoRef.current.currentTime = startTime;
     }
     if (!isPlaying) {
       onTogglePlay();

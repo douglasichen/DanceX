@@ -57,7 +57,7 @@ export async function getIntervals(fileInput: string | File) {
     config: {
       systemInstruction: [
         {
-          text: `Given a dance video, chunk it into smaller sections that are easier to learn. Output the time intervals in milliseconds. Ensure the time intervals are precise. Ensure the chunk title are at most two words.`,
+          text: `Given a dance video, chunk it into smaller sections that are easier to learn. Output the time intervals in milliseconds. Ensure the time intervals are precise. Ensure the chunk title are at most two words. First chunk start time should be 0. Last chunk end time should be the total video length. Section intervals should be at least 2000 ms long.`,
         },
       ],
       responseMimeType: 'application/json',

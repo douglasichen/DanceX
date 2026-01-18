@@ -6,40 +6,6 @@ import { Upload, Loader2 } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { getIntervals } from "../utils/gemini";
 
-// Mock video chunks data
-const INITIAL_CHUNKS = [
-  {
-    id: 1,
-    title: "Intro Move",
-    duration: "0:00-0:05",
-    thumbnail: "https://images.unsplash.com/photo-1768244016517-2ec30e558a78?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYW5jaW5nJTIwcGVyc29ufGVufDF8fHx8MTc2ODY3NzMxNnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-  },
-  {
-    id: 2,
-    title: "Hip Sway",
-    duration: "0:05-0:10",
-    thumbnail: "https://images.unsplash.com/photo-1565784796667-98515d255f7d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoaXAlMjBob3AlMjBkYW5jZXJ8ZW58MXx8fHwxNzY4NjgxNjAxfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-  },
-  {
-    id: 3,
-    title: "Body Roll",
-    duration: "0:10-0:15",
-    thumbnail: "https://images.unsplash.com/photo-1718908721930-31120bc1beb5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYW5jZSUyMHBlcmZvcm1hbmNlfGVufDF8fHx8MTc2ODU3OTA2Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-  },
-  {
-    id: 4,
-    title: "Arm Wave",
-    duration: "0:15-0:20",
-    thumbnail: "https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHJlZXQlMjBkYW5jZXxlbnwxfHx8fDE3Njg2ODE2MDF8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-  },
-  {
-    id: 5,
-    title: "Spin Move",
-    duration: "0:20-0:25",
-    thumbnail: "https://images.unsplash.com/photo-1547153760-18fc86324498?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBkYW5jZXJ8ZW58MXx8fHwxNzY4NjgxNjAxfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-  },
-];
-
 // Sample video URL - In production, this would change based on selected chunk
 const SAMPLE_VIDEO = sampleVideo;
 
@@ -68,7 +34,7 @@ const generateThumbnail = (videoUrl: string, time: number): Promise<string> => {
 };
 
 export default function App() {
-  const [chunks, setChunks] = useState(INITIAL_CHUNKS);
+  const [chunks, setChunks] = useState<any[]>([]);
   const [selectedChunk, setSelectedChunk] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
@@ -106,11 +72,14 @@ export default function App() {
           id: index + 1,
           title: interval.chunk_title,
           duration: `${formatTime(startSeconds)}-${formatTime(endSeconds)}`,
-          thumbnail
+          thumbnail,
+          startTime: interval.start,
+          endTime: interval.end,
         };
       }));
 
       setChunks(newChunks);
+      console.log("newChunks: ", newChunks);
       if (newChunks.length > 0) {
         setSelectedChunk(newChunks[0].id);
       }
@@ -149,7 +118,10 @@ export default function App() {
   };
 
   const handleSelectChunk = (id: number) => {
+    console.log("Selected chunk: ", id);
+    console.log(chunks.find(c => c.id === id));
     setSelectedChunk(id);
+    setIsPlaying(false);
   };
 
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,6 +187,8 @@ export default function App() {
               onTogglePlay={handleTogglePlay}
               onSpeedChange={handleSpeedChange}
               className="w-[450px] h-[800px] relative z-10"
+              startTime={(chunks.find(c => c.id === selectedChunk)?.startTime || 0) / 1000}
+              endTime={(chunks.find(c => c.id === selectedChunk)?.endTime || 0)/1000}
             />
           </div>
 
