@@ -41,11 +41,25 @@ export default function App() {
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const processVideo = async (file: File, url: string) => {
     setIsAnalyzing(true);
     setChunks([]); // Clear previous chunks
 
     try {
+      // Get video duration
+      const video = document.createElement("video");
+      video.src = url;
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => resolve(true);
+      });
+      const duration = video.duration;
+
       // Generate intervals using Gemini
       const intervals = await getIntervals(file);
       console.log("Intervals: ", intervals);
@@ -54,12 +68,6 @@ export default function App() {
       const newChunks = await Promise.all(intervals.map(async (interval: any, index: number) => {
         const startSeconds = interval.start / 1000;
         const endSeconds = interval.end / 1000;
-        
-        const formatTime = (seconds: number) => {
-          const m = Math.floor(seconds / 60);
-          const s = Math.floor(seconds % 60);
-          return `${m}:${s.toString().padStart(2, '0')}`;
-        };
 
         let thumbnail = "";
         try {
@@ -78,10 +86,31 @@ export default function App() {
         };
       }));
 
-      setChunks(newChunks);
-      console.log("newChunks: ", newChunks);
+      // Create Full Song chunk
+      let fullSongThumbnail = "";
+      try {
+        fullSongThumbnail = await generateThumbnail(url, 0);
+      } catch (e) {
+        console.error("Failed to generate thumbnail for full song", e);
+      }
+
+      const fullSongChunk = {
+        id: 0,
+        title: "Full Song",
+        duration: formatTime(duration),
+        thumbnail: fullSongThumbnail,
+        startTime: 0,
+        endTime: duration * 1000,
+      };
+
+      const allChunks = [fullSongChunk, ...newChunks];
+      setChunks(allChunks);
+      console.log("allChunks: ", allChunks);
+      
       if (newChunks.length > 0) {
         setSelectedChunk(newChunks[0].id);
+      } else {
+        setSelectedChunk(0);
       }
     } catch (error) {
       console.error("Error analyzing video:", error);
