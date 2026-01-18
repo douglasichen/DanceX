@@ -38,6 +38,8 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
     showDebugRef.current = showDebug;
   }, [showDebug]);
 
+  const CONFIDENCE_THRESHOLD = 0.15;
+
   const onResults = useCallback((results: Results) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -51,21 +53,8 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!showDebugRef.current) {
-        ctx.restore();
-        return;
-    }
-
+    
     if (results.poseLandmarks) {
-      drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-        color: "#00FF00",
-        lineWidth: 4,
-      });
-      drawLandmarks(ctx, results.poseLandmarks, {
-        color: "#FF0000",
-        lineWidth: 2,
-      });
-
       // Calculate and draw angles
       const landmarks = results.poseLandmarks;
       
@@ -74,45 +63,42 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
         y: landmarks[index].y * canvas.height
       });
 
+      // Helper to check if landmark has sufficient confidence
+      const isLandmarkValid = (index: number): boolean => {
+        return landmarks[index] && (landmarks[index].visibility ?? 0) > CONFIDENCE_THRESHOLD;
+      };
+
       const angles: Record<number, number> = {};
 
-      // 1. ELBOW ANGLES (Shoulder -> Elbow -> Wrist)
-      // Left: 11 -> 13 -> 15
-      if (landmarks[11] && landmarks[13] && landmarks[15]) {
+      // 1. ELBOW ANGLES
+      if (isLandmarkValid(11) && isLandmarkValid(13) && isLandmarkValid(15)) {
          angles[13] = calculateAngle(getCoords(11), getCoords(13), getCoords(15));
       }
-      // Right: 12 -> 14 -> 16
-      if (landmarks[12] && landmarks[14] && landmarks[16]) {
+      if (isLandmarkValid(12) && isLandmarkValid(14) && isLandmarkValid(16)) {
          angles[14] = calculateAngle(getCoords(12), getCoords(14), getCoords(16));
       }
 
-      // 2. SHOULDER ANGLES (Hip -> Shoulder -> Elbow)
-      // Left: 23 -> 11 -> 13
-      if (landmarks[23] && landmarks[11] && landmarks[13]) {
+      // 2. SHOULDER ANGLES
+      if (isLandmarkValid(23) && isLandmarkValid(11) && isLandmarkValid(13)) {
         angles[11] = calculateAngle(getCoords(23), getCoords(11), getCoords(13));
       }
-      // Right: 24 -> 12 -> 14
-      if (landmarks[24] && landmarks[12] && landmarks[14]) {
+      if (isLandmarkValid(24) && isLandmarkValid(12) && isLandmarkValid(14)) {
         angles[12] = calculateAngle(getCoords(24), getCoords(12), getCoords(14));
       }
 
-      // 3. KNEE ANGLES (Hip -> Knee -> Ankle)
-      // Left: 23 -> 25 -> 27
-      if (landmarks[23] && landmarks[25] && landmarks[27]) {
+      // 3. KNEE ANGLES
+      if (isLandmarkValid(23) && isLandmarkValid(25) && isLandmarkValid(27)) {
         angles[25] = calculateAngle(getCoords(23), getCoords(25), getCoords(27));
       }
-      // Right: 24 -> 26 -> 28
-      if (landmarks[24] && landmarks[26] && landmarks[28]) {
+      if (isLandmarkValid(24) && isLandmarkValid(26) && isLandmarkValid(28)) {
         angles[26] = calculateAngle(getCoords(24), getCoords(26), getCoords(28));
       }
 
-      // 4. HIP/TORSO ANGLES (Shoulder -> Hip -> Knee)
-      // Left: 11 -> 23 -> 25
-      if (landmarks[11] && landmarks[23] && landmarks[25]) {
+      // 4. HIP/TORSO ANGLES
+      if (isLandmarkValid(11) && isLandmarkValid(23) && isLandmarkValid(25)) {
         angles[23] = calculateAngle(getCoords(11), getCoords(23), getCoords(25));
       }
-      // Right: 12 -> 24 -> 26
-      if (landmarks[12] && landmarks[24] && landmarks[26]) {
+      if (isLandmarkValid(12) && isLandmarkValid(24) && isLandmarkValid(26)) {
         angles[24] = calculateAngle(getCoords(12), getCoords(24), getCoords(26));
       }
 
@@ -120,38 +106,49 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
         onCompare(angles);
       }
 
-      // Draw angles
-      ctx.fillStyle = "white";
-      ctx.font = "bold 16px Arial";
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "black";
+      if (showDebugRef.current) {
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+          color: "#00FF00",
+          lineWidth: 4,
+        });
+        drawLandmarks(ctx, results.poseLandmarks, {
+          color: "#FF0000",
+          lineWidth: 2,
+        });
 
-      Object.entries(angles).forEach(([index, angle]) => {
-        const idx = parseInt(index);
-        const pos = getCoords(idx);
-        const text = Math.round(angle).toString();
-
-        let color = "white";
-        const diff = comparisonResults[idx]
-
-        if (diff !== undefined) {
-          if (diff < 15) {
-            color = "#00FF00"; // Green - good
-          } else if (diff < 30) {
-            color = "#FFFF00"; // Yellow - okay
-          } else {
-            color = "#FF0000"; // Red - needs improvement
-          }
-        }
-
-        ctx.fillStyle = color;
+        // Draw angles
+        ctx.fillStyle = "white";
         ctx.font = "bold 16px Arial";
         ctx.lineWidth = 2;
         ctx.strokeStyle = "black";
-        
-        ctx.strokeText(text, pos.x + 10, pos.y - 10);
-        ctx.fillText(text, pos.x + 10, pos.y - 10);
-      });
+
+        Object.entries(angles).forEach(([index, angle]) => {
+          const idx = parseInt(index);
+          const pos = getCoords(idx);
+          const text = Math.round(angle).toString();
+
+          let color = "white";
+          const diff = comparisonResults[idx]
+
+          if (diff !== undefined) {
+            if (diff < 15) {
+              color = "#00FF00"; // Green - good
+            } else if (diff < 30) {
+              color = "#FFFF00"; // Yellow - okay
+            } else {
+              color = "#FF0000"; // Red - needs improvement
+            }
+          }
+
+          ctx.fillStyle = color;
+          ctx.font = "bold 16px Arial";
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "black";
+          
+          ctx.strokeText(text, pos.x + 10, pos.y - 10);
+          ctx.fillText(text, pos.x + 10, pos.y - 10);
+        });
+      }
     }
     ctx.restore();
   }, []);

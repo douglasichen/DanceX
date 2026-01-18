@@ -6,6 +6,8 @@ import { Upload, Loader2 } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { max } from "date-fns";
 import { getIntervals } from "../utils/gemini";
+import { getRandomArmTip, getRandomLegTip } from "@/app/components/Tips";
+import { playSound } from "./components/Sounds";
 
 // Sample video URL - In production, this would change based on selected chunk
 const SAMPLE_VIDEO = sampleVideo;
@@ -33,6 +35,7 @@ const generateThumbnail = (videoUrl: string, time: number): Promise<string> => {
     video.load();
   });
 };
+
 
 export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -149,6 +152,8 @@ export default function App() {
   const [finalScore, setFinalScore] = useState(0);
   const [armsScore, setArmsScore] = useState(0);
   const [legsScore, setLegsScore] = useState(0);
+  const [armsTip, setArmsTip] = useState("");
+  const [legsTip, setLegsTip] = useState("");
   
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
@@ -199,6 +204,8 @@ export default function App() {
         ? videoHistoryRef.current 
         : [videoAnglesRef.current];
 
+      console.log('CamAngles :', camAngles);
+
       framesToCompare.forEach((videoAngles) => {
         let currentFrameError = 0;
         let currentFrameDiffs: Record<number, number> = {};
@@ -230,6 +237,8 @@ export default function App() {
             bestFrameDiffs = currentFrameDiffs;
         }
       });
+
+      console.log("Best frame diffs: ", bestFrameDiffs);
 
       // Now accumulate the stats from the BEST matching frame
       Object.entries(bestFrameDiffs).forEach(([key, diff]) => {
@@ -294,7 +303,12 @@ export default function App() {
     setArmsScore(armsScorePercent);
     setLegsScore(legsScorePercent);
 
+    setArmsTip(getRandomArmTip(armsScorePercent));
+    setLegsTip(getRandomLegTip(legsScorePercent));
+
     setShowScoreScreen(true);
+
+    playSound(scorePercent);
 
     // Reset counters for next video
     totalErrorRef.current = 0;
@@ -340,7 +354,7 @@ export default function App() {
 
   useEffect(() => {
     // Set document title from env var
-    document.title = import.meta.env.VITE_APP_TITLE || "DanceX";
+    document.title = import.meta.env.VITE_APP_TITLE || "Dance CV";
 
     const initVideo = async () => {
       try {
@@ -388,7 +402,7 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         {/* Video Carousel Sidebar */}
         <div className="w-64 flex flex-col bg-gradient-to-b from-gray-950 via-gray-900 to-black border-r border-cyan-500/20 p-6 shadow-[4px_0_20px_rgba(0,242,234,0.1)] relative">
-          <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 font-bold text-lg mb-4 tracking-wide">Dance Sections</h2>
+          <h2 className="bungee-inline text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 font-bold text-4xl mb-4 tracking-wide">Dance CV</h2>
           
           {/* Upload Video Button */}
           <label className="mb-6 block cursor-pointer group">
@@ -442,7 +456,7 @@ export default function App() {
             />
             {showScoreScreen && (
                 <div className="absolute inset-0 bg-black/95 rounded-2xl flex flex-col items-center justify-center z-50">
-                  <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-8">Score: {finalScore.toFixed(1)}%</h1>
+                  <h1 className="bungee-inline text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-8">Score: {finalScore.toFixed(1)}%</h1>
                   
                   <div className="flex gap-8 mb-8">
                     <div className="flex flex-col items-center">
@@ -453,6 +467,21 @@ export default function App() {
                     <div className="flex flex-col items-center">
                       <span className="text-2xl font-bold text-pink-500">{legsScore.toFixed(1)}%</span>
                       <span className="text-gray-400 text-sm uppercase tracking-wider">Legs</span>
+                    </div>
+                  </div>
+
+                  {/* Tips Section */}
+                  <div className="w-full max-w-md mb-12 space-y-6 px-6">
+                    {/* Arms Tip */}
+                    <div className="flex gap-3 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                      <span className="text-cyan-400 font-bold text-lg flex-shrink-0">💪</span>
+                      <p className="text-cyan-300 text-sm leading-relaxed">{armsTip}</p>
+                    </div>
+
+                    {/* Legs Tip */}
+                    <div className="flex gap-3 p-4 bg-pink-500/10 border border-pink-500/30 rounded-lg">
+                      <span className="text-pink-400 font-bold text-lg flex-shrink-0">🦵</span>
+                      <p className="text-pink-300 text-sm leading-relaxed">{legsTip}</p>
                     </div>
                   </div>
 

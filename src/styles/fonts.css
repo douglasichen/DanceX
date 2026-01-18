@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Bungee+Inline&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
+
+body {
+  font-family: 'Instrument Sans', sans-serif;
+}
+
+.bungee-inline {
+  font-family: 'Bungee Inline', sans-serif;
+}

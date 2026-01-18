@@ -55,21 +55,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!showSkeletonRef.current) {
-        ctx.restore();
-        return;
-    }
-
     if (results.poseLandmarks) {
-      drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-        color: "#00FF00",
-        lineWidth: 4,
-      });
-      drawLandmarks(ctx, results.poseLandmarks, {
-        color: "#FF0000",
-        lineWidth: 2,
-      });
-
       // Calculate and draw angles
       const landmarks = results.poseLandmarks;
       
@@ -124,20 +110,31 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
         onAnglesUpdate(angles);
       }
 
-      // Draw angles
-      ctx.fillStyle = "white";
-      ctx.font = "bold 16px Arial";
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "black";
+      if (showSkeletonRef.current) {
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+          color: "#00FF00",
+          lineWidth: 4,
+        });
+        drawLandmarks(ctx, results.poseLandmarks, {
+          color: "#FF0000",
+          lineWidth: 2,
+        });
 
-      Object.entries(angles).forEach(([index, angle]) => {
-        const idx = parseInt(index);
-        const pos = getCoords(idx);
-        const text = Math.round(angle).toString();
-        
-        ctx.strokeText(text, pos.x + 10, pos.y - 10);
-        ctx.fillText(text, pos.x + 10, pos.y - 10);
-      });
+        // Draw angles
+        ctx.fillStyle = "white";
+        ctx.font = "bold 16px Arial";
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "black";
+
+        Object.entries(angles).forEach(([index, angle]) => {
+          const idx = parseInt(index);
+          const pos = getCoords(idx);
+          const text = Math.round(angle).toString();
+          
+          ctx.strokeText(text, pos.x + 10, pos.y - 10);
+          ctx.fillText(text, pos.x + 10, pos.y - 10);
+        });
+      }
     }
     ctx.restore();
   }, [onAnglesUpdate]);
