@@ -13,9 +13,12 @@ interface VideoPlayerProps {
   onSpeedChange: (speed: number) => void;
   startTime?: number;
   endTime?: number;
+  onAnglesUpdate?: (angles: Record<number, number>) => void;
+  onVideoEnd?: () => void;
+  onRestart?: () => void;
 }
 
-export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, startTime, endTime }: VideoPlayerProps) {
+export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, startTime, endTime, onAnglesUpdate, onVideoEnd, onRestart }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const poseRef = useRef<Pose | null>(null);
@@ -117,6 +120,10 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
         angles[24] = calculateAngle(getCoords(12), getCoords(24), getCoords(26));
       }
 
+      if (onAnglesUpdate) {
+        onAnglesUpdate(angles);
+      }
+
       // Draw angles
       ctx.fillStyle = "white";
       ctx.font = "bold 16px Arial";
@@ -133,7 +140,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
       });
     }
     ctx.restore();
-  }, []);
+  }, [onAnglesUpdate]);
 
   useEffect(() => {
     const pose = new Pose({
@@ -158,6 +165,20 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
       pose.close();
     };
   }, [onResults]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      const handleEnded = () => {
+        onVideoEnd?.();
+      };
+      
+      const video = videoRef.current;
+      video.addEventListener('ended', handleEnded);
+      return () => {
+        video.removeEventListener('ended', handleEnded);
+      };
+    }
+  }, [onVideoEnd]);
 
   const processFrame = useCallback(async (now: number, metadata: any) => {
     if (videoRef.current && poseRef.current) {
@@ -221,6 +242,8 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
     if (!isPlaying) {
       onTogglePlay();
     }
+
+    onRestart?.();
   };
 
   return (
@@ -230,7 +253,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
           ref={videoRef}
           src={src}
           className="w-full h-full object-cover"
-          loop
+          // loop
           playsInline
         />
         <canvas
