@@ -147,12 +147,23 @@ export default function App() {
   };
   const [showScoreScreen, setShowScoreScreen] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
+  const [armsScore, setArmsScore] = useState(0);
+  const [legsScore, setLegsScore] = useState(0);
   
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
   const totalErrorRef = useRef(0);
   const totalSquaredErrorRef = useRef(0);
   const comparisonCountRef = useRef(0);
+
+  const armsTotalErrorRef = useRef(0);
+  const armsTotalSquaredErrorRef = useRef(0);
+  const armsComparisonCountRef = useRef(0);
+
+  const legsTotalErrorRef = useRef(0);
+  const legsTotalSquaredErrorRef = useRef(0);
+  const legsComparisonCountRef = useRef(0);
+
   const comparisonResultsRef = useRef<Record<number, number>>({});
   const videoAnglesRef = useRef<Record<number, number>>({});
   
@@ -225,6 +236,19 @@ export default function App() {
           totalErrorRef.current += diff;
           totalSquaredErrorRef.current += diff * diff;
           comparisonCountRef.current++;
+
+          const jointIdx = Number(key);
+          if (!isNaN(jointIdx)) {
+            if ([11, 12, 13, 14].includes(jointIdx)) {
+              armsTotalErrorRef.current += diff;
+              armsTotalSquaredErrorRef.current += diff * diff;
+              armsComparisonCountRef.current++;
+            } else if ([23, 24, 25, 26].includes(jointIdx)) {
+              legsTotalErrorRef.current += diff;
+              legsTotalSquaredErrorRef.current += diff * diff;
+              legsComparisonCountRef.current++;
+            }
+          }
       });
       
       comparisonResultsRef.current = bestFrameDiffs;
@@ -233,6 +257,15 @@ export default function App() {
 
   const handleVideoEnd = () => {
     let scorePercent = 0;
+    let armsScorePercent = 0;
+    let legsScorePercent = 0;
+
+    const calculateScore = (totalSquared: number, count: number) => {
+      if (count === 0) return 0;
+      const rmsError = Math.sqrt(totalSquared / count);
+      const maxTolerableError = 45;
+      return Math.max(0, 100 * (1 - Math.pow(rmsError / maxTolerableError, 3)));
+    };
 
     if (comparisonCountRef.current > 0) {
       const averageError = totalErrorRef.current / comparisonCountRef.current;
@@ -242,6 +275,8 @@ export default function App() {
       console.log(`Average Error per Joint: ${averageError.toFixed(2)}°`);
       console.log(`RMS Error: ${rmsError.toFixed(2)}°`);
       console.log(`Total Comparisons: ${comparisonCountRef.current}`);
+      console.log(`Arms Comparisons: ${armsComparisonCountRef.current}`);
+      console.log(`Legs Comparisons: ${legsComparisonCountRef.current}`);
 
       // Calculate score using a cubic curve to separate good/bad performances
       // RMS Error of 0  => 100%
@@ -250,9 +285,14 @@ export default function App() {
       // RMS Error of 45+ => 0%
       const maxTolerableError = 45;
       scorePercent = Math.max(0, 100 * (1 - Math.pow(rmsError / maxTolerableError, 3)));
+
+      armsScorePercent = calculateScore(armsTotalSquaredErrorRef.current, armsComparisonCountRef.current);
+      legsScorePercent = calculateScore(legsTotalSquaredErrorRef.current, legsComparisonCountRef.current);
     }
 
     setFinalScore(scorePercent);
+    setArmsScore(armsScorePercent);
+    setLegsScore(legsScorePercent);
 
     setShowScoreScreen(true);
 
@@ -260,6 +300,15 @@ export default function App() {
     totalErrorRef.current = 0;
     totalSquaredErrorRef.current = 0;
     comparisonCountRef.current = 0;
+
+    armsTotalErrorRef.current = 0;
+    armsTotalSquaredErrorRef.current = 0;
+    armsComparisonCountRef.current = 0;
+
+    legsTotalErrorRef.current = 0;
+    legsTotalSquaredErrorRef.current = 0;
+    legsComparisonCountRef.current = 0;
+
     frameCounterRef.current = 0;
 
     comparisonResultsRef.current = {};
@@ -275,6 +324,14 @@ export default function App() {
     totalErrorRef.current = 0;
     totalSquaredErrorRef.current = 0;
     comparisonCountRef.current = 0;
+
+    armsTotalErrorRef.current = 0;
+    armsTotalSquaredErrorRef.current = 0;
+    armsComparisonCountRef.current = 0;
+
+    legsTotalErrorRef.current = 0;
+    legsTotalSquaredErrorRef.current = 0;
+    legsComparisonCountRef.current = 0;
 
     comparisonResultsRef.current = {};
     videoAnglesRef.current = {};
@@ -386,9 +443,22 @@ export default function App() {
             {showScoreScreen && (
                 <div className="absolute inset-0 bg-black/95 rounded-2xl flex flex-col items-center justify-center z-50">
                   <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-8">Score: {finalScore.toFixed(1)}%</h1>
+                  
+                  <div className="flex gap-8 mb-8">
+                    <div className="flex flex-col items-center">
+                      <span className="text-2xl font-bold text-cyan-400">{armsScore.toFixed(1)}%</span>
+                      <span className="text-gray-400 text-sm uppercase tracking-wider">Arms</span>
+                    </div>
+                    <div className="w-px bg-gray-700"></div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-2xl font-bold text-pink-500">{legsScore.toFixed(1)}%</span>
+                      <span className="text-gray-400 text-sm uppercase tracking-wider">Legs</span>
+                    </div>
+                  </div>
+
                   <button
                     onClick={handleRestartVideo}
-                    className="mt-8 px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:from-cyan-500 hover:to-cyan-700 rounded-full font-bold text-black transition-all duration-200 shadow-[0_0_20px_rgba(0,242,234,0.5)] hover:shadow-[0_0_30px_rgba(0,242,234,0.8)]"
+                    className="mt-4 px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:from-cyan-500 hover:to-cyan-700 rounded-full font-bold text-black transition-all duration-200 shadow-[0_0_20px_rgba(0,242,234,0.5)] hover:shadow-[0_0_30px_rgba(0,242,234,0.8)]"
                   >
                     Try Again
                   </button>
