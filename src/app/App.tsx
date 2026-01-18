@@ -6,7 +6,8 @@ import { Upload, Loader2 } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { max } from "date-fns";
 import { getIntervals } from "../utils/gemini";
-import { getRandomArmTip, getRandomLegTip } from "./components/tips";
+import { getRandomArmTip, getRandomLegTip } from "@/app/components/Tips";
+import { playSound } from "./components/Sounds";
 
 // Sample video URL - In production, this would change based on selected chunk
 const SAMPLE_VIDEO = sampleVideo;
@@ -34,6 +35,7 @@ const generateThumbnail = (videoUrl: string, time: number): Promise<string> => {
     video.load();
   });
 };
+
 
 export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -301,6 +303,8 @@ export default function App() {
     setLegsTip(getRandomLegTip(legsScorePercent));
 
     setShowScoreScreen(true);
+
+    playSound(scorePercent);
 
     // Reset counters for next video
     totalErrorRef.current = 0;
