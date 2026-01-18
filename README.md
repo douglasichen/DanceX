@@ -4,10 +4,8 @@ DanceCV is an interactive and hands-free dance education platform that leverages
 
 # Preview
 
-https://github.com/douglasichen/DanceCV/assets/21995574/a53b5ede-863d-4625-90fa-4a495e1c067e
-
-# Demos
-[media/A_TRIMMED.mp4](media/A_TRIMMED.mp4)
+<video src="./media/A_TRIMMED.mp4" controls="controls" style="max-width: 730px;">
+</video>
 
 
 
