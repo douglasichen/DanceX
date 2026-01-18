@@ -70,7 +70,8 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
-  // const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
+  const [showScoreScreen, setShowScoreScreen] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
   
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
@@ -78,6 +79,8 @@ export default function App() {
   const comparisonCountRef = useRef(0);
   const comparisonResultsRef = useRef<Record<number, number>>({});
   const videoAnglesRef = useRef<Record<number, number>>({});
+  const maxScoreRef = useRef(0);
+  const currentScoreRef = useRef(0);
 
   const handleCameraResults = (camAngles: Record<number, number>) => {
     frameCounterRef.current++;
@@ -94,14 +97,14 @@ export default function App() {
           totalErrorRef.current += diffs[idx];
           comparisonCountRef.current++;
 
-          maxScore.current += 2; // Max 2 points per joint
+          maxScoreRef.current += 2; // Max 2 points per joint
 
           if (diffs[idx] < 15) {
-            currentScore.current += 2;
+            currentScoreRef.current += 2;
           } else if (diffs[idx] < 30) {
-            currentScore.current += 1;
+            currentScoreRef.current += 1;
           } else {
-            currentScore.current += 0;
+            currentScoreRef.current += 0;
           }
         }
       });
@@ -117,8 +120,8 @@ export default function App() {
       console.log(`Total Comparisons: ${comparisonCountRef.current}`);
     }
     // Calculate and store the final score as a percentage
-    const scorePercent = maxScore.current > 0 
-      ? (currentScore.current / maxScore.current) * 100 
+    const scorePercent = maxScoreRef.current > 0 
+      ? (currentScoreRef.current / maxScoreRef.current) * 100 
       : 0;
     setFinalScore(scorePercent);
 
@@ -128,11 +131,11 @@ export default function App() {
     totalErrorRef.current = 0;
     comparisonCountRef.current = 0;
     frameCounterRef.current = 0;
-    currentScore.current = 0;
-    maxScore.current = 0;
+    currentScoreRef.current = 0;
+    maxScoreRef.current = 0;
 
-    setComparisonResults({});
-    setVideoAngles({});
+    comparisonResultsRef.current = {};
+    videoAnglesRef.current = {};
   };
 
   const handleRestartVideo = () => {
@@ -142,11 +145,11 @@ export default function App() {
     frameCounterRef.current = 0;
     totalErrorRef.current = 0;
     comparisonCountRef.current = 0;
-    maxScore.current = 0;
-    currentScore.current = 0;
+    maxScoreRef.current = 0;
+    currentScoreRef.current = 0;
 
-    setComparisonResults({});
-    setVideoAngles({});
+    comparisonResultsRef.current = {};
+    videoAnglesRef.current = {};
   };
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useReducer } from "react";
 import { Camera, CameraOff, Scan, Eye, EyeOff } from "lucide-react";
 import { Pose, POSE_CONNECTIONS, Results } from "@mediapipe/pose";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
@@ -12,7 +12,7 @@ interface CameraFeedProps {
   onCompare?: (angles: Record<number, number>) => void;
 }
 
-export function CameraFeed({ className, referenceAngles = {}, comparisonResults, onCompare }: CameraFeedProps) {
+export function CameraFeed({ className, comparisonResults, onCompare }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -22,6 +22,16 @@ export function CameraFeed({ className, referenceAngles = {}, comparisonResults,
   const cameraRef = useRef<Cam.Camera | null>(null);
   const poseRef = useRef<Pose | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Use a ref for comparison results to avoid slow state updates
+  const comparisonResultsRef = useRef<Record<number, number>>(comparisonResults || {});
+  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+
+  // Sync ref with incoming prop and trigger re-render
+  useEffect(() => {
+    comparisonResultsRef.current = comparisonResults || {};
+    forceUpdate();
+  }, [comparisonResults]);
 
   // Sync ref with state
   useEffect(() => {
@@ -144,7 +154,7 @@ export function CameraFeed({ className, referenceAngles = {}, comparisonResults,
       });
     }
     ctx.restore();
-  }, [comparisonResults, onCompare]);
+  }, []);
 
   useEffect(() => {
     const pose = new Pose({
