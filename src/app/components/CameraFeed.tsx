@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useReducer } from "react";
 import { Camera, CameraOff, Scan, Eye, EyeOff } from "lucide-react";
 import { Pose, POSE_CONNECTIONS, Results } from "@mediapipe/pose";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
@@ -7,9 +7,12 @@ import { calculateAngle } from "@/utils/pose";
 
 interface CameraFeedProps {
   className?: string;
+  referenceAngles?: Record<number, number>;
+  comparisonResults?: Record<number, number>;
+  onCompare?: (angles: Record<number, number>) => void;
 }
 
-export function CameraFeed({ className }: CameraFeedProps) {
+export function CameraFeed({ className, comparisonResults, onCompare }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -18,6 +21,17 @@ export function CameraFeed({ className }: CameraFeedProps) {
   const showDebugRef = useRef(true); // Ref for access inside callback without dependency issues
   const cameraRef = useRef<Cam.Camera | null>(null);
   const poseRef = useRef<Pose | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Use a ref for comparison results to avoid slow state updates
+  const comparisonResultsRef = useRef<Record<number, number>>(comparisonResults || {});
+  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+
+  // Sync ref with incoming prop and trigger re-render
+  useEffect(() => {
+    comparisonResultsRef.current = comparisonResults || {};
+    forceUpdate();
+  }, [comparisonResults]);
 
   // Sync ref with state
   useEffect(() => {
@@ -27,30 +41,20 @@ export function CameraFeed({ className }: CameraFeedProps) {
   const onResults = useCallback((results: Results) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!canvas || !video || !results.poseLandmarks) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Match canvas size to video size
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Only draw if debug mode is enabled
+
     if (!showDebugRef.current) {
         ctx.restore();
         return;
     }
-
-    // Draw only the skeleton, video is already in the background element
-    // But we need to flip the context if we want the skeleton to match the mirrored video
-    // The video element is CSS mirrored with scale-x-[-1]
-    // So we should mirror the canvas drawing too
-    ctx.scale(-1, 1);
-    ctx.translate(-canvas.width, 0);
 
     if (results.poseLandmarks) {
       drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
@@ -112,6 +116,10 @@ export function CameraFeed({ className }: CameraFeedProps) {
         angles[24] = calculateAngle(getCoords(12), getCoords(24), getCoords(26));
       }
 
+      if (onCompare) {
+        onCompare(angles);
+      }
+
       // Draw angles
       ctx.fillStyle = "white";
       ctx.font = "bold 16px Arial";
@@ -122,6 +130,24 @@ export function CameraFeed({ className }: CameraFeedProps) {
         const idx = parseInt(index);
         const pos = getCoords(idx);
         const text = Math.round(angle).toString();
+
+        let color = "white";
+        const diff = comparisonResults[idx]
+
+        if (diff !== undefined) {
+          if (diff < 15) {
+            color = "#00FF00"; // Green - good
+          } else if (diff < 30) {
+            color = "#FFFF00"; // Yellow - okay
+          } else {
+            color = "#FF0000"; // Red - needs improvement
+          }
+        }
+
+        ctx.fillStyle = color;
+        ctx.font = "bold 16px Arial";
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "black";
         
         ctx.strokeText(text, pos.x + 10, pos.y - 10);
         ctx.fillText(text, pos.x + 10, pos.y - 10);
@@ -157,24 +183,41 @@ export function CameraFeed({ className }: CameraFeedProps) {
   const startCamera = async () => {
     try {
       if (videoRef.current && poseRef.current) {
+        // Initialize the offscreen canvas once
+        if (!offscreenCanvasRef.current) {
+          offscreenCanvasRef.current = document.createElement("canvas");
+        }
+        const offCanvas = offscreenCanvasRef.current;
+        const offCtx = offCanvas.getContext("2d");
+
         const camera = new Cam.Camera(videoRef.current, {
           onFrame: async () => {
-            if (videoRef.current && poseRef.current) {
-              await poseRef.current.send({ image: videoRef.current });
+            if (videoRef.current && poseRef.current && offCtx) {
+              // Set dimensions to match the source
+              offCanvas.width = videoRef.current.videoWidth;
+              offCanvas.height = videoRef.current.videoHeight;
+
+              // FLIP THE IMAGE HERE
+              offCtx.save();
+              offCtx.translate(offCanvas.width, 0);
+              offCtx.scale(-1, 1);
+              offCtx.drawImage(videoRef.current, 0, 0, offCanvas.width, offCanvas.height);
+              offCtx.restore();
+
+              // Send the flipped CANVAS instead of the VIDEO
+              await poseRef.current.send({ image: offCanvas });
             }
           },
           width: 1280,
           height: 720,
         });
-        
+
         cameraRef.current = camera;
         await camera.start();
         setIsActive(true);
-        setError(null);
       }
     } catch (err) {
       handleCameraError(err);
-      setIsActive(false);
     }
   };
 
