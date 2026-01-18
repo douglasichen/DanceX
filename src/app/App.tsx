@@ -204,6 +204,8 @@ export default function App() {
         ? videoHistoryRef.current 
         : [videoAnglesRef.current];
 
+      console.log('CamAngles :', camAngles);
+
       framesToCompare.forEach((videoAngles) => {
         let currentFrameError = 0;
         let currentFrameDiffs: Record<number, number> = {};
@@ -235,6 +237,8 @@ export default function App() {
             bestFrameDiffs = currentFrameDiffs;
         }
       });
+
+      console.log("Best frame diffs: ", bestFrameDiffs);
 
       // Now accumulate the stats from the BEST matching frame
       Object.entries(bestFrameDiffs).forEach(([key, diff]) => {
@@ -350,7 +354,7 @@ export default function App() {
 
   useEffect(() => {
     // Set document title from env var
-    document.title = import.meta.env.VITE_APP_TITLE || "DanceX";
+    document.title = import.meta.env.VITE_APP_TITLE || "Dance CV";
 
     const initVideo = async () => {
       try {
