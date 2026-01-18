@@ -75,23 +75,69 @@ export default function App() {
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  const processVideo = async (file: File, url: string) => {
+    setIsAnalyzing(true);
+    setChunks([]); // Clear previous chunks
+
+    try {
+      // Generate intervals using Gemini
+      const intervals = await getIntervals(file);
+      console.log("Intervals: ", intervals);
+      
+      // Convert intervals to chunks with thumbnails
+      const newChunks = await Promise.all(intervals.map(async (interval: any, index: number) => {
+        const startSeconds = interval.start / 1000;
+        const endSeconds = interval.end / 1000;
+        
+        const formatTime = (seconds: number) => {
+          const m = Math.floor(seconds / 60);
+          const s = Math.floor(seconds % 60);
+          return `${m}:${s.toString().padStart(2, '0')}`;
+        };
+
+        let thumbnail = "";
+        try {
+          thumbnail = await generateThumbnail(url, startSeconds);
+        } catch (e) {
+          console.error("Failed to generate thumbnail for interval", index, e);
+        }
+
+        return {
+          id: index + 1,
+          title: interval.chunk_title,
+          duration: `${formatTime(startSeconds)}-${formatTime(endSeconds)}`,
+          thumbnail
+        };
+      }));
+
+      setChunks(newChunks);
+      if (newChunks.length > 0) {
+        setSelectedChunk(newChunks[0].id);
+      }
+    } catch (error) {
+      console.error("Error analyzing video:", error);
+      // alert("Failed to analyze video intervals. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   useEffect(() => {
     // Set document title from env var
     document.title = import.meta.env.VITE_APP_TITLE || "DanceX";
 
-    const loadDefaultThumbnail = async () => {
+    const initVideo = async () => {
       try {
-        const thumbnail = await generateThumbnail(SAMPLE_VIDEO, 0);
-        setChunks(prevChunks => prevChunks.map(chunk => ({
-          ...chunk,
-          thumbnail
-        })));
+        const response = await fetch(SAMPLE_VIDEO);
+        const blob = await response.blob();
+        const file = new File([blob], "sample.mp4", { type: "video/mp4" });
+        await processVideo(file, SAMPLE_VIDEO);
       } catch (error) {
-        console.error("Error generating default thumbnail:", error);
+        console.error("Error initializing video:", error);
       }
     };
 
-    loadDefaultThumbnail();
+    initVideo();
   }, []);
 
   const handleTogglePlay = () => {
@@ -112,50 +158,8 @@ export default function App() {
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
       setIsPlaying(false);
-      setIsAnalyzing(true);
-      setChunks([]); // Clear previous chunks
-
-      try {
-        // Generate intervals using Gemini
-        const intervals = await getIntervals(file);
-        console.log("Intervals: ", intervals);
-        
-        // Convert intervals to chunks with thumbnails
-        const newChunks = await Promise.all(intervals.map(async (interval: any, index: number) => {
-          const startSeconds = interval.start / 1000;
-          const endSeconds = interval.end / 1000;
-          
-          const formatTime = (seconds: number) => {
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            return `${m}:${s.toString().padStart(2, '0')}`;
-          };
-
-          let thumbnail = "";
-          try {
-            thumbnail = await generateThumbnail(url, startSeconds);
-          } catch (e) {
-            console.error("Failed to generate thumbnail for interval", index, e);
-          }
-
-          return {
-            id: index + 1,
-            title: interval.chunk_title,
-            duration: `${formatTime(startSeconds)}-${formatTime(endSeconds)}`,
-            thumbnail
-          };
-        }));
-
-        setChunks(newChunks);
-        if (newChunks.length > 0) {
-          setSelectedChunk(newChunks[0].id);
-        }
-      } catch (error) {
-        console.error("Error analyzing video:", error);
-        alert("Failed to analyze video intervals. Please try again.");
-      } finally {
-        setIsAnalyzing(false);
-      }
+      
+      await processVideo(file, url);
     }
   };
 
