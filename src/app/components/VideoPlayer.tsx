@@ -11,7 +11,7 @@ interface VideoPlayerProps {
   className?: string;
   onTogglePlay: () => void;
   onSpeedChange: (speed: number) => void;
-  onAnglesUpdate?: (angles: Record<number, number>) => void;
+  onAnglesUpdate?: React.RefObject<Record<number, number>>;
   onVideoEnd?: () => void;
 }
 
@@ -108,7 +108,7 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
       }
 
       if (onAnglesUpdate) {
-        onAnglesUpdate(angles);
+        onAnglesUpdate.current = angles;
       }
 
       // Draw angles
