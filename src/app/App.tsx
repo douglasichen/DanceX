@@ -70,17 +70,14 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
-  const [videoAngles, setVideoAngles] = useState<Record<number, number>>({});
-  const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
-  const [showScoreScreen, setShowScoreScreen] = useState(false);
-  const [finalScore, setFinalScore] = useState(0);
-
+  // const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
+  
   // A simple counter to track frames for the interval logic
   const frameCounterRef = useRef(0);
   const totalErrorRef = useRef(0);
   const comparisonCountRef = useRef(0);
-  const maxScore = useRef(0);
-  const currentScore = useRef(0);
+  const comparisonResultsRef = useRef<Record<number, number>>({});
+  const videoAnglesRef = useRef<Record<number, number>>({});
 
   const handleCameraResults = (camAngles: Record<number, number>) => {
     frameCounterRef.current++;
@@ -88,12 +85,12 @@ export default function App() {
     // Only compare every 5 frames (~4 times a second at 20-30fps)
     if (frameCounterRef.current % 1 === 0) {
       const diffs: Record<number, number> = {};
-      
+
       Object.keys(camAngles).forEach((key) => {
         const idx = parseInt(key);
-        if (videoAngles[idx] !== undefined) {
+        if (videoAnglesRef.current[idx] !== undefined) {
           // Calculate the difference between the two sources
-          diffs[idx] = Math.abs(camAngles[idx] - videoAngles[idx]);
+          diffs[idx] = Math.abs(camAngles[idx] - videoAnglesRef.current[idx]);
           totalErrorRef.current += diffs[idx];
           comparisonCountRef.current++;
 
@@ -108,8 +105,7 @@ export default function App() {
           }
         }
       });
-      
-      setComparisonResults(diffs);
+      comparisonResultsRef.current = diffs;
     }
   };
 
@@ -243,7 +239,7 @@ export default function App() {
               playbackSpeed={playbackSpeed}
               onTogglePlay={handleTogglePlay}
               onSpeedChange={handleSpeedChange}
-              onAnglesUpdate={setVideoAngles}
+              onAnglesUpdate={videoAnglesRef}
               onVideoEnd={handleVideoEnd}
               onRestart={handleRestartVideo}
               className="w-[450px] h-[800px] relative z-10"
@@ -268,8 +264,8 @@ export default function App() {
           <div className="flex flex-col items-center relative z-10">
             <div className="absolute -inset-4 bg-gradient-to-r from-pink-500 to-cyan-500 rounded-2xl opacity-20 blur-xl" />
             <CameraFeed 
-            referenceAngles={videoAngles} 
-            comparisonResults={comparisonResults}
+            referenceAngles={videoAnglesRef.current} 
+            comparisonResults={comparisonResultsRef.current}
             onCompare={handleCameraResults}
             className="w-[450px] h-[800px] relative z-10" />
             {/* <div className="mt-4 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-cyan-500/20 rounded-full border border-pink-500/30">
