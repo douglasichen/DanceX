@@ -128,7 +128,7 @@ export function CameraFeed({ className, comparisonResults, onCompare }: CameraFe
           const text = Math.round(angle).toString();
 
           let color = "white";
-          const diff = comparisonResults[idx]
+          const diff = comparisonResultsRef.current[idx];
 
           if (diff !== undefined) {
             if (diff < 15) {

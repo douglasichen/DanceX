@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { VideoCarousel } from "@/app/components/VideoCarousel";
 import { VideoPlayer } from "@/app/components/VideoPlayer";
 import { CameraFeed } from "@/app/components/CameraFeed";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Mic, MicOff } from "lucide-react";
 import sampleVideo from "../../media/C_720_shorter.mp4";
 import { max } from "date-fns";
-import { getIntervals } from "../utils/gemini";
+import { getIntervals } from "../utils/gemini_chunk";
+import { GeminiCommandManager } from "../utils/gemini_commands";
 import { getRandomArmTip, getRandomLegTip } from "@/app/components/Tips";
 import { playSound } from "./components/Sounds";
 
@@ -38,13 +39,80 @@ const generateThumbnail = (videoUrl: string, time: number): Promise<string> => {
 
 
 export default function App() {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [chunks, setChunks] = useState<any[]>([]);
-  const [selectedChunk, setSelectedChunk] = useState(1);
+  const [selectedChunk, setSelectedChunk] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [videoUrl, setVideoUrl] = useState<string>(SAMPLE_VIDEO);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isMicActive, setIsMicActive] = useState(false);
+  const geminiManagerRef = useRef<GeminiCommandManager | null>(null);
+
+  // Refs to hold current state/handlers for Gemini callbacks
+  const handlersRef = useRef({
+    restart: () => {},
+    next: () => {},
+    start: () => {},
+  });
+
+  const handleRestartCommand = () => {
+    console.log("handle restart command");
+    if (videoRef.current) {
+      videoRef.current.currentTime = (chunks.find(c => c.id === selectedChunk)?.startTime || 0) / 1000;
+      // Force play to ensure video starts even if isPlaying state doesn't change
+      videoRef.current.play().catch(e => console.error("Play error:", e));
+    }
+
+    handleRestartVideo();
+  };
+
+  const handleNextCommand = () => {
+    console.log("handle next command");
+    const currentIndex = chunks.findIndex(c => c.id === selectedChunk);
+    if (currentIndex !== -1 && currentIndex < chunks.length - 1) {
+      const nextChunk = chunks[currentIndex + 1];
+      handleSelectChunk(nextChunk.id);
+    }
+  };
+
+  const handleStartCommand = () => {
+    console.log("handle start command");
+    handleRestartCommand();
+  };
+
+  // Update handlers ref on every render so Gemini always calls the latest version
+  useEffect(() => {
+    handlersRef.current = {
+      restart: handleRestartCommand,
+      next: handleNextCommand,
+      start: handleStartCommand,
+    };
+  });
+
+  const toggleMic = async () => {
+    if (isMicActive) {
+      if (geminiManagerRef.current) {
+        await geminiManagerRef.current.disconnect();
+        setIsMicActive(false);
+      }
+    } else {
+      try {
+        if (!geminiManagerRef.current) {
+          geminiManagerRef.current = new GeminiCommandManager(
+            () => handlersRef.current.restart(),
+            () => handlersRef.current.next(),
+            () => handlersRef.current.start()
+          );
+        }
+        await geminiManagerRef.current.connect();
+        setIsMicActive(true);
+      } catch (error) {
+        console.error("Failed to connect to Gemini:", error);
+      }
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -169,6 +237,7 @@ export default function App() {
   const legsTotalSquaredErrorRef = useRef(0);
   const legsComparisonCountRef = useRef(0);
 
+  const [comparisonResults, setComparisonResults] = useState<Record<number, number>>({});
   const comparisonResultsRef = useRef<Record<number, number>>({});
   const videoAnglesRef = useRef<Record<number, number>>({});
   
@@ -417,6 +486,28 @@ export default function App() {
               className="hidden"
             />
           </label>
+
+          {/* Gemini Mic Button */}
+          <button
+            onClick={toggleMic}
+            className={`mb-6 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 border ${
+              isMicActive
+                ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/30 hover:border-red-500/50"
+                : "bg-gradient-to-r from-cyan-500/10 to-pink-500/10 hover:from-cyan-500/20 hover:to-pink-500/20 border-cyan-500/30 hover:border-cyan-500/50"
+            }`}
+          >
+            {isMicActive ? (
+              <>
+                <MicOff className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-semibold text-red-400">End Session</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-semibold text-cyan-400">Gemini Live</span>
+              </>
+            )}
+          </button>
           
           {isAnalyzing ? (
             <div className="flex flex-col items-center justify-center flex-1 gap-4 text-cyan-400">
@@ -442,6 +533,7 @@ export default function App() {
           <div className="flex flex-col items-center relative z-10">
             <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500 to-pink-500 rounded-2xl opacity-20 blur-xl" />
             <VideoPlayer
+              videoRef={videoRef}
               src={videoUrl}
               isPlaying={isPlaying}
               playbackSpeed={playbackSpeed}
@@ -486,7 +578,7 @@ export default function App() {
                   </div>
 
                   <button
-                    onClick={handleRestartVideo}
+                    onClick={handleRestartCommand}
                     className="mt-4 px-8 py-3 bg-gradient-to-r from-cyan-400 to-cyan-600 hover:from-cyan-500 hover:to-cyan-700 rounded-full font-bold text-black transition-all duration-200 shadow-[0_0_20px_rgba(0,242,234,0.5)] hover:shadow-[0_0_30px_rgba(0,242,234,0.8)]"
                   >
                     Try Again
@@ -503,7 +595,7 @@ export default function App() {
             <div className="absolute -inset-4 bg-gradient-to-r from-pink-500 to-cyan-500 rounded-2xl opacity-20 blur-xl" />
             <CameraFeed 
             referenceAngles={videoAnglesRef.current} 
-            comparisonResults={comparisonResultsRef.current}
+            comparisonResults={comparisonResults}
             onCompare={handleCameraResults}
             className="w-[450px] h-[800px] relative z-10" />
             {/* <div className="mt-4 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-cyan-500/20 rounded-full border border-pink-500/30">

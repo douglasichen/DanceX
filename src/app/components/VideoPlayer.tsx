@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, RefObject } from "react";
 import { Play, Pause, RotateCcw, Eye, EyeOff } from "lucide-react";
 import { Pose, POSE_CONNECTIONS, Results } from "@mediapipe/pose";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
@@ -16,10 +16,10 @@ interface VideoPlayerProps {
   onAnglesUpdate?: (angles: Record<number, number>) => void;
   onVideoEnd?: () => void;
   onRestart?: () => void;
+  videoRef: RefObject<HTMLVideoElement>;
 }
 
-export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, startTime, endTime, onAnglesUpdate, onVideoEnd, onRestart }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onTogglePlay, onSpeedChange, startTime, endTime, onAnglesUpdate, onVideoEnd, onRestart, videoRef }: VideoPlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const poseRef = useRef<Pose | null>(null);
   const [showSkeleton, setShowSkeleton] = useState(true);
@@ -240,7 +240,8 @@ export function VideoPlayer({ src, isPlaying, playbackSpeed, className, onToggle
   const handleRestart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.currentTime = startTime;
+      videoRef.current.currentTime = startTime || 0;
+      videoRef.current.play().catch(e => console.error("Play error:", e));
     }
     if (!isPlaying) {
       onTogglePlay();
